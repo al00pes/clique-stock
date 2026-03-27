@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Save, MessageCircle, ExternalLink } from 'lucide-react';
+import { Save, MessageCircle, ExternalLink, Loader2 } from 'lucide-react';
 
 export default function Settings() {
   const { whatsappNumber, setWhatsappNumber } = useSettings();
   const [phone, setPhone] = useState(whatsappNumber);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    setWhatsappNumber(phone);
+  useEffect(() => { setPhone(whatsappNumber); }, [whatsappNumber]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await setWhatsappNumber(phone);
     toast.success('Configurações salvas com sucesso!');
+    setSaving(false);
   };
 
   return (
@@ -38,8 +43,8 @@ export default function Settings() {
           <a href="/catalogo" target="_blank" rel="noopener noreferrer" className="text-sm text-accent hover:underline inline-flex items-center gap-1">
             <ExternalLink className="w-3 h-3" /> Ver catálogo online
           </a>
-          <Button onClick={handleSave} className="gold-gradient text-gold-foreground hover:opacity-90">
-            <Save className="w-4 h-4 mr-2" /> Salvar
+          <Button onClick={handleSave} className="gold-gradient text-gold-foreground hover:opacity-90" disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Salvar
           </Button>
         </div>
       </div>

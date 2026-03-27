@@ -2,8 +2,9 @@ import { useAuth, ModulePermissions } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trash2, Shield, User } from 'lucide-react';
+import { Trash2, Shield, User, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 
 const moduleLabels: Record<keyof ModulePermissions, string> = {
   dashboard: 'Dashboard',
@@ -15,8 +16,15 @@ const moduleLabels: Record<keyof ModulePermissions, string> = {
 
 export default function UserManagement() {
   const { user, users, updateUserPermissions, deleteUser } = useAuth();
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const otherUsers = users.filter(u => u.id !== user?.id);
+
+  const handleDelete = async (userId: string) => {
+    setDeleting(userId);
+    await deleteUser(userId);
+    setDeleting(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -42,8 +50,8 @@ export default function UserManagement() {
                   {u.role === 'admin' ? 'Admin' : 'Usuário'}
                 </Badge>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => deleteUser(u.id)} className="text-destructive hover:text-destructive">
-                <Trash2 className="w-4 h-4" />
+              <Button variant="ghost" size="icon" onClick={() => handleDelete(u.id)} className="text-destructive hover:text-destructive" disabled={deleting === u.id}>
+                {deleting === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
               </Button>
             </div>
 
