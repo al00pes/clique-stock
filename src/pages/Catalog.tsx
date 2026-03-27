@@ -1,12 +1,20 @@
-import { useState, useMemo } from 'react';
-import { useStock } from '@/contexts/StockContext';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Send, Gem, X } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Send, Gem, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface CatalogProduct {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  category: string;
+  description: string;
+}
 
 interface CartItem {
   productId: string;
@@ -16,24 +24,37 @@ interface CartItem {
 }
 
 export default function Catalog() {
-  const { products } = useStock();
-  const { whatsappNumber } = useSettings();
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [clientName, setClientName] = useState('');
 
-  const availableProducts = products.filter(p => p.quantity > 0);
-  const categories = useMemo(() => [...new Set(availableProducts.map(p => p.category).filter(Boolean))], [availableProducts]);
+  useEffect(() => {
+    async function load() {
+      const [{ data: prods }, { data: settings }] = await Promise.all([
+        supabase.from('products').select('*').gt('quantity', 0).order('name'),
+        supabase.from('settings').select('*').eq('key', 'whatsapp_number').maybeSingle(),
+      ]);
+      if (prods) setProducts(prods.map(p => ({ id: p.id, name: p.name, price: Number(p.price), quantity: p.quantity, category: p.category, description: p.description })));
+      if (settings) setWhatsappNumber(settings.value);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const categories = useMemo(() => [...new Set(products.map(p => p.category).filter(Boolean))], [products]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const filtered = availableProducts.filter(p => {
+  const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !selectedCategory || p.category === selectedCategory;
     return matchSearch && matchCategory;
   });
 
-  const addToCart = (product: typeof products[0]) => {
+  const addToCart = (product: CatalogProduct) => {
     setCart(prev => {
       const existing = prev.find(i => i.productId === product.id);
       if (existing) {
@@ -68,9 +89,16 @@ export default function Catalog() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -80,25 +108,20 @@ export default function Catalog() {
             <span className="font-display text-xl font-bold text-foreground">EstoqueJóias</span>
           </div>
           <Button variant="outline" className="relative" onClick={() => setCartOpen(true)}>
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            Carrinho
+            <ShoppingCart className="w-4 h-4 mr-2" /> Carrinho
             {cartCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs gold-gradient text-gold-foreground border-0">
-                {cartCount}
-              </Badge>
+              <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs gold-gradient text-gold-foreground border-0">{cartCount}</Badge>
             )}
           </Button>
         </div>
       </header>
 
-      {/* Content */}
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-display font-bold text-foreground">Nosso Catálogo</h1>
           <p className="text-muted-foreground">Escolha suas peças favoritas e envie seu pedido</p>
         </div>
 
-        {/* Search + Categories */}
         <div className="space-y-3">
           <div className="relative max-w-md mx-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -108,15 +131,12 @@ export default function Catalog() {
             <div className="flex gap-2 justify-center flex-wrap">
               <Button variant={!selectedCategory ? 'default' : 'outline'} size="sm" onClick={() => setSelectedCategory(null)}>Todos</Button>
               {categories.map(cat => (
-                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'outline'} size="sm" onClick={() => setSelectedCategory(cat)}>
-                  {cat}
-                </Button>
+                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'outline'} size="sm" onClick={() => setSelectedCategory(cat)}>{cat}</Button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {filtered.map((p, i) => {
@@ -124,7 +144,7 @@ export default function Catalog() {
               return (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.05 }}
                   className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="h-40 gold-gradient/10 bg-muted flex items-center justify-center">
+                  <div className="h-40 bg-muted flex items-center justify-center">
                     <Gem className="w-12 h-12 text-accent opacity-40" />
                   </div>
                   <div className="p-4 space-y-3">
@@ -137,13 +157,9 @@ export default function Catalog() {
                       <span className="text-lg font-bold text-foreground">R$ {p.price.toLocaleString('pt-BR')}</span>
                       {inCart ? (
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCartQty(p.id, -1)}>
-                            <Minus className="w-3 h-3" />
-                          </Button>
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCartQty(p.id, -1)}><Minus className="w-3 h-3" /></Button>
                           <span className="font-semibold text-foreground w-6 text-center">{inCart.quantity}</span>
-                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCartQty(p.id, 1)} disabled={inCart.quantity >= p.quantity}>
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateCartQty(p.id, 1)} disabled={inCart.quantity >= p.quantity}><Plus className="w-3 h-3" /></Button>
                         </div>
                       ) : (
                         <Button size="sm" className="gold-gradient text-gold-foreground hover:opacity-90" onClick={() => addToCart(p)}>
@@ -157,13 +173,9 @@ export default function Catalog() {
             })}
           </AnimatePresence>
         </div>
-
-        {filtered.length === 0 && (
-          <p className="text-center text-muted-foreground py-12">Nenhum produto encontrado</p>
-        )}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">Nenhum produto encontrado</p>}
       </div>
 
-      {/* Cart Dialog */}
       <Dialog open={cartOpen} onOpenChange={setCartOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Seu Carrinho</DialogTitle></DialogHeader>
@@ -179,33 +191,18 @@ export default function Catalog() {
                       <p className="text-xs text-muted-foreground">R$ {item.price.toLocaleString('pt-BR')} un.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, -1)}>
-                        <Minus className="w-3 h-3" />
-                      </Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, -1)}><Minus className="w-3 h-3" /></Button>
                       <span className="text-sm font-semibold w-5 text-center text-foreground">{item.quantity}</span>
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, 1)}>
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.productId)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, 1)}><Plus className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.productId)}><Trash2 className="w-3 h-3" /></Button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="flex justify-between font-semibold text-foreground text-lg">
-                <span>Total</span>
-                <span>R$ {cartTotal.toLocaleString('pt-BR')}</span>
-              </div>
-
-              <div className="space-y-2">
-                <Input placeholder="Seu nome (opcional)" value={clientName} onChange={e => setClientName(e.target.value)} />
-              </div>
-
+              <div className="flex justify-between font-semibold text-foreground text-lg"><span>Total</span><span>R$ {cartTotal.toLocaleString('pt-BR')}</span></div>
+              <div className="space-y-2"><Input placeholder="Seu nome (opcional)" value={clientName} onChange={e => setClientName(e.target.value)} /></div>
               <Button className="w-full gold-gradient text-gold-foreground hover:opacity-90" onClick={sendWhatsApp} disabled={!whatsappNumber}>
-                <Send className="w-4 h-4 mr-2" />
-                {whatsappNumber ? 'Enviar Pedido por WhatsApp' : 'WhatsApp não configurado'}
+                <Send className="w-4 h-4 mr-2" /> {whatsappNumber ? 'Enviar Pedido por WhatsApp' : 'WhatsApp não configurado'}
               </Button>
               {!whatsappNumber && <p className="text-xs text-destructive text-center">O administrador precisa configurar o número de WhatsApp nas configurações.</p>}
             </div>
@@ -213,14 +210,11 @@ export default function Catalog() {
         </DialogContent>
       </Dialog>
 
-      {/* Floating cart button (mobile) */}
       {cartCount > 0 && (
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="fixed bottom-6 right-6 sm:hidden z-40">
           <Button size="lg" className="rounded-full gold-gradient text-gold-foreground shadow-lg h-14 w-14" onClick={() => setCartOpen(true)}>
             <ShoppingCart className="w-5 h-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground border-0">
-              {cartCount}
-            </Badge>
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground border-0">{cartCount}</Badge>
           </Button>
         </motion.div>
       )}

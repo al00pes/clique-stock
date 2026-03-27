@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Product {
   id: string;
@@ -24,70 +25,119 @@ export interface Movement {
 interface StockContextType {
   products: Product[];
   movements: Movement[];
-  addProduct: (p: Omit<Product, 'id' | 'createdAt'>) => void;
-  updateProduct: (id: string, p: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  addMovement: (m: Omit<Movement, 'id' | 'date'>) => void;
+  loading: boolean;
+  addProduct: (p: Omit<Product, 'id' | 'createdAt'>) => Promise<void>;
+  updateProduct: (id: string, p: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addMovement: (m: Omit<Movement, 'id' | 'date'>) => Promise<void>;
   getProduct: (id: string) => Product | undefined;
   lowStockProducts: Product[];
   totalProducts: number;
   totalValue: number;
+  refreshProducts: () => Promise<void>;
 }
-
-const mockProducts: Product[] = [
-  { id: '1', name: 'Anel Solitário Ouro 18k', quantity: 12, price: 2890, category: 'Anéis', description: 'Anel solitário com diamante', minStock: 5, createdAt: '2024-01-15' },
-  { id: '2', name: 'Colar Pérolas Naturais', quantity: 3, price: 1450, category: 'Colares', description: 'Colar com pérolas naturais', minStock: 5, createdAt: '2024-01-20' },
-  { id: '3', name: 'Brinco Gota Prata 925', quantity: 25, price: 189, category: 'Brincos', description: '', minStock: 10, createdAt: '2024-02-01' },
-  { id: '4', name: 'Pulseira Riviera', quantity: 2, price: 3200, category: 'Pulseiras', description: 'Pulseira riviera com zircônias', minStock: 3, createdAt: '2024-02-10' },
-  { id: '5', name: 'Aliança Ouro Rosé', quantity: 8, price: 1680, category: 'Alianças', description: '', minStock: 5, createdAt: '2024-03-01' },
-  { id: '6', name: 'Tornozeleira Prata', quantity: 1, price: 120, category: 'Tornozeleiras', description: 'Tornozeleira delicada', minStock: 5, createdAt: '2024-03-05' },
-];
-
-const mockMovements: Movement[] = [
-  { id: '1', productId: '1', productName: 'Anel Solitário Ouro 18k', type: 'entrada', quantity: 5, date: '2024-03-20', note: 'Reposição fornecedor' },
-  { id: '2', productId: '2', productName: 'Colar Pérolas Naturais', type: 'saida', quantity: 2, date: '2024-03-21', note: 'Venda cliente VIP' },
-  { id: '3', productId: '3', productName: 'Brinco Gota Prata 925', type: 'entrada', quantity: 15, date: '2024-03-22', note: 'Compra atacado' },
-  { id: '4', productId: '6', productName: 'Tornozeleira Prata', type: 'saida', quantity: 4, date: '2024-03-23', note: 'Venda loja' },
-];
 
 const StockContext = createContext<StockContextType | null>(null);
 
 export function StockProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [movements, setMovements] = useState<Movement[]>(mockMovements);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<Movement[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addProduct = useCallback((p: Omit<Product, 'id' | 'createdAt'>) => {
-    setProducts(prev => [...prev, { ...p, id: crypto.randomUUID(), createdAt: new Date().toISOString().split('T')[0] }]);
+  const fetchProducts = useCallback(async () => {
+    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) {
+      setProducts(data.map(p => ({
+        id: p.id, name: p.name, quantity: p.quantity, price: Number(p.price),
+        category: p.category, description: p.description, minStock: p.min_stock, createdAt: p.created_at,
+      })));
+    }
   }, []);
 
-  const updateProduct = useCallback((id: string, data: Partial<Product>) => {
+  const fetchMovements = useCallback(async () => {
+    const { data } = await supabase.from('movements').select('*').order('created_at', { ascending: false });
+    if (data) {
+      setMovements(data.map(m => ({
+        id: m.id, productId: m.product_id, productName: m.product_name,
+        type: m.type as 'entrada' | 'saida', quantity: m.quantity, date: m.created_at, note: m.note,
+      })));
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([fetchProducts(), fetchMovements()]);
+    setLoading(false);
+  }, [fetchProducts, fetchMovements]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const addProduct = useCallback(async (p: Omit<Product, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase.from('products').insert({
+      name: p.name, quantity: p.quantity, price: p.price,
+      category: p.category, description: p.description, min_stock: p.minStock,
+    }).select().single();
+    if (data && !error) {
+      setProducts(prev => [{
+        id: data.id, name: data.name, quantity: data.quantity, price: Number(data.price),
+        category: data.category, description: data.description, minStock: data.min_stock, createdAt: data.created_at,
+      }, ...prev]);
+    }
+  }, []);
+
+  const updateProduct = useCallback(async (id: string, data: Partial<Product>) => {
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
+    if (data.price !== undefined) updateData.price = data.price;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.minStock !== undefined) updateData.min_stock = data.minStock;
+
+    await supabase.from('products').update(updateData).eq('id', id);
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
   }, []);
 
-  const deleteProduct = useCallback((id: string) => {
+  const deleteProduct = useCallback(async (id: string) => {
+    await supabase.from('products').delete().eq('id', id);
     setProducts(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  const addMovement = useCallback((m: Omit<Movement, 'id' | 'date'>) => {
-    const mov: Movement = { ...m, id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0] };
-    setMovements(prev => [mov, ...prev]);
-    setProducts(prev => prev.map(p => {
-      if (p.id === m.productId) {
-        const newQty = m.type === 'entrada' ? p.quantity + m.quantity : Math.max(0, p.quantity - m.quantity);
-        return { ...p, quantity: newQty };
-      }
-      return p;
-    }));
-  }, []);
+  const addMovement = useCallback(async (m: Omit<Movement, 'id' | 'date'>) => {
+    // Insert movement
+    const { data: movData } = await supabase.from('movements').insert({
+      product_id: m.productId, product_name: m.productName,
+      type: m.type, quantity: m.quantity, note: m.note,
+    }).select().single();
+
+    // Update product quantity
+    const product = products.find(p => p.id === m.productId);
+    if (product) {
+      const newQty = m.type === 'entrada' ? product.quantity + m.quantity : Math.max(0, product.quantity - m.quantity);
+      await supabase.from('products').update({ quantity: newQty }).eq('id', m.productId);
+      setProducts(prev => prev.map(p => p.id === m.productId ? { ...p, quantity: newQty } : p));
+    }
+
+    if (movData) {
+      setMovements(prev => [{
+        id: movData.id, productId: movData.product_id, productName: movData.product_name,
+        type: movData.type as 'entrada' | 'saida', quantity: movData.quantity,
+        date: movData.created_at, note: movData.note,
+      }, ...prev]);
+    }
+  }, [products]);
 
   const getProduct = useCallback((id: string) => products.find(p => p.id === id), [products]);
+  const refreshProducts = fetchProducts;
 
   const lowStockProducts = products.filter(p => p.quantity <= p.minStock);
   const totalProducts = products.length;
   const totalValue = products.reduce((sum, p) => sum + p.quantity * p.price, 0);
 
   return (
-    <StockContext.Provider value={{ products, movements, addProduct, updateProduct, deleteProduct, addMovement, getProduct, lowStockProducts, totalProducts, totalValue }}>
+    <StockContext.Provider value={{ products, movements, loading, addProduct, updateProduct, deleteProduct, addMovement, getProduct, lowStockProducts, totalProducts, totalValue, refreshProducts }}>
       {children}
     </StockContext.Provider>
   );

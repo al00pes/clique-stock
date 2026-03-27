@@ -16,25 +16,29 @@ import Catalog from "@/pages/Catalog";
 import Settings from "@/pages/Settings";
 import UserManagement from "@/pages/UserManagement";
 import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, module }: { children: React.ReactNode; module?: string }) {
-  const { isAuthenticated, hasAccess } = useAuth();
+  const { isAuthenticated, hasAccess, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
   if (!isAuthenticated) return <Navigate to="/" replace />;
   if (module && !hasAccess(module as any)) return <Navigate to="/dashboard" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
   if (!isAuthenticated) return <Navigate to="/" replace />;
   if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return <AppLayout>{children}</AppLayout>;
 }
 
 function AuthGate() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <LoginPage />;
 }
