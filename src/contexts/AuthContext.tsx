@@ -6,6 +6,7 @@ export interface ModulePermissions {
   dashboard: boolean;
   products: boolean;
   movements: boolean;
+  sales: boolean;
   reports: boolean;
 }
 
