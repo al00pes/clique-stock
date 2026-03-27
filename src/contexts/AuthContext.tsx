@@ -32,7 +32,7 @@ interface AuthContextType {
 }
 
 const defaultAdminPermissions: ModulePermissions = {
-  dashboard: true, products: true, movements: true, reports: true,
+  dashboard: true, products: true, movements: true, sales: true, reports: true,
 };
 
 const mockUsers: (User & { password: string })[] = [
