@@ -42,7 +42,7 @@ const mockUsers: (User & { password: string })[] = [
   },
   {
     id: '2', name: 'Maria Silva', email: 'maria@estoque.com', password: 'user123',
-    role: 'user', permissions: { dashboard: true, products: true, movements: false, reports: false },
+    role: 'user', permissions: { dashboard: true, products: true, movements: false, sales: false, reports: false },
   },
 ];
 
