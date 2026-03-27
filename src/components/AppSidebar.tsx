@@ -1,7 +1,7 @@
 import { useAuth, type ModulePermissions } from '@/contexts/AuthContext';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ArrowDownUp, Users, LogOut, Gem, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Package, ArrowDownUp, Users, LogOut, Gem, ShoppingBag, Settings } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
@@ -12,10 +12,12 @@ const menuItems: { title: string; url: string; icon: typeof LayoutDashboard; mod
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
   { title: 'Produtos', url: '/produtos', icon: Package, module: 'products' },
   { title: 'Movimentações', url: '/movimentacoes', icon: ArrowDownUp, module: 'movements' },
+  { title: 'Vendas', url: '/vendas', icon: ShoppingBag, module: 'sales' },
 ];
 
 const adminItems = [
   { title: 'Usuários', url: '/usuarios', icon: Users },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
 export function AppSidebar() {

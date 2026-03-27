@@ -6,6 +6,7 @@ export interface ModulePermissions {
   dashboard: boolean;
   products: boolean;
   movements: boolean;
+  sales: boolean;
   reports: boolean;
 }
 
@@ -31,7 +32,7 @@ interface AuthContextType {
 }
 
 const defaultAdminPermissions: ModulePermissions = {
-  dashboard: true, products: true, movements: true, reports: true,
+  dashboard: true, products: true, movements: true, sales: true, reports: true,
 };
 
 const mockUsers: (User & { password: string })[] = [
@@ -41,7 +42,7 @@ const mockUsers: (User & { password: string })[] = [
   },
   {
     id: '2', name: 'Maria Silva', email: 'maria@estoque.com', password: 'user123',
-    role: 'user', permissions: { dashboard: true, products: true, movements: false, reports: false },
+    role: 'user', permissions: { dashboard: true, products: true, movements: false, sales: false, reports: false },
   },
 ];
 
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser = {
       id: crypto.randomUUID(), name, email, password,
       role: 'user' as UserRole,
-      permissions: { dashboard: true, products: false, movements: false, reports: false },
+      permissions: { dashboard: true, products: false, movements: false, sales: false, reports: false },
     };
     setUsersDB(prev => [...prev, newUser]);
     const { password: _, ...userData } = newUser;

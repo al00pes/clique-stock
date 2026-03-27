@@ -5,11 +5,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { StockProvider } from "@/contexts/StockContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Products from "@/pages/Products";
 import Movements from "@/pages/Movements";
+import Sales from "@/pages/Sales";
+import Catalog from "@/pages/Catalog";
+import Settings from "@/pages/Settings";
 import UserManagement from "@/pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
@@ -42,16 +46,21 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <StockProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<AuthGate />} />
-              <Route path="/dashboard" element={<ProtectedRoute module="dashboard"><Dashboard /></ProtectedRoute>} />
-              <Route path="/produtos" element={<ProtectedRoute module="products"><Products /></ProtectedRoute>} />
-              <Route path="/movimentacoes" element={<ProtectedRoute module="movements"><Movements /></ProtectedRoute>} />
-              <Route path="/usuarios" element={<AdminRoute><UserManagement /></AdminRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <SettingsProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<AuthGate />} />
+                <Route path="/dashboard" element={<ProtectedRoute module="dashboard"><Dashboard /></ProtectedRoute>} />
+                <Route path="/produtos" element={<ProtectedRoute module="products"><Products /></ProtectedRoute>} />
+                <Route path="/movimentacoes" element={<ProtectedRoute module="movements"><Movements /></ProtectedRoute>} />
+                <Route path="/vendas" element={<ProtectedRoute module="sales"><Sales /></ProtectedRoute>} />
+                <Route path="/catalogo" element={<Catalog />} />
+                <Route path="/configuracoes" element={<AdminRoute><Settings /></AdminRoute>} />
+                <Route path="/usuarios" element={<AdminRoute><UserManagement /></AdminRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </SettingsProvider>
         </StockProvider>
       </AuthProvider>
     </TooltipProvider>
