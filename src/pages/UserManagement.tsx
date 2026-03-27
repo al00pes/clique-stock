@@ -9,6 +9,7 @@ const moduleLabels: Record<keyof ModulePermissions, string> = {
   dashboard: 'Dashboard',
   products: 'Produtos',
   movements: 'Movimentações',
+  sales: 'Vendas',
   reports: 'Relatórios',
 };
 
