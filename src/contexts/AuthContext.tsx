@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser = {
       id: crypto.randomUUID(), name, email, password,
       role: 'user' as UserRole,
-      permissions: { dashboard: true, products: false, movements: false, reports: false },
+      permissions: { dashboard: true, products: false, movements: false, sales: false, reports: false },
     };
     setUsersDB(prev => [...prev, newUser]);
     const { password: _, ...userData } = newUser;
