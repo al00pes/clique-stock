@@ -14,6 +14,7 @@ interface CatalogProduct {
   quantity: number;
   category: string;
   description: string;
+  image_url?: string;
 }
 
 interface CartItem {
