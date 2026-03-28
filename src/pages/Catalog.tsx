@@ -1,11 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Send, Gem, Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Send, Gem, Loader2, LogIn, CalendarIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface CatalogProduct {
   id: string;
@@ -25,13 +31,20 @@ interface CartItem {
 }
 
 export default function Catalog() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+
+  // Order fields
   const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [orderNote, setOrderNote] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -79,16 +92,25 @@ export default function Catalog() {
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const sendWhatsApp = () => {
-    if (!whatsappNumber || cart.length === 0) return;
+    if (!whatsappNumber || cart.length === 0 || !clientName.trim() || !clientPhone.trim()) return;
+
     const itemsText = cart.map(i => `• ${i.name} x${i.quantity} — R$ ${(i.quantity * i.price).toLocaleString('pt-BR')}`).join('\n');
-    const message = `🛍️ *Novo Pedido - EstoqueJóias*\n\n` +
-      (clientName ? `*Cliente:* ${clientName}\n\n` : '') +
-      `*Itens:*\n${itemsText}\n\n` +
-      `*Total: R$ ${cartTotal.toLocaleString('pt-BR')}*\n\n` +
-      `Enviado pelo catálogo online.`;
+
+    let message = `🛍️ *Novo Pedido - EstoqueJóias*\n\n`;
+    message += `*Cliente:* ${clientName.trim()}\n`;
+    message += `*Telefone:* ${clientPhone.trim()}\n`;
+    if (deliveryDate) message += `*Data de entrega:* ${format(deliveryDate, 'dd/MM/yyyy')}\n`;
+    if (deliveryAddress.trim()) message += `*Endereço:* ${deliveryAddress.trim()}\n`;
+    message += `\n*Itens:*\n${itemsText}\n\n`;
+    message += `*Total: R$ ${cartTotal.toLocaleString('pt-BR')}*`;
+    if (orderNote.trim()) message += `\n\n*Observação:* ${orderNote.trim()}`;
+    message += `\n\nEnviado pelo catálogo online.`;
+
     const phone = whatsappNumber.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
+
+  const canSend = whatsappNumber && cart.length > 0 && clientName.trim() && clientPhone.trim();
 
   if (loading) {
     return (
@@ -108,12 +130,17 @@ export default function Catalog() {
             </div>
             <span className="font-display text-xl font-bold text-foreground">EstoqueJóias</span>
           </div>
-          <Button variant="outline" className="relative" onClick={() => setCartOpen(true)}>
-            <ShoppingCart className="w-4 h-4 mr-2" /> Carrinho
-            {cartCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs gold-gradient text-gold-foreground border-0">{cartCount}</Badge>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="relative" onClick={() => setCartOpen(true)}>
+              <ShoppingCart className="w-4 h-4 mr-2" /> Carrinho
+              {cartCount > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs gold-gradient text-gold-foreground border-0">{cartCount}</Badge>
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} title="Entrar no sistema">
+              <LogIn className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -183,21 +210,26 @@ export default function Catalog() {
         {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">Nenhum produto encontrado</p>}
       </div>
 
-      <Dialog open={cartOpen} onOpenChange={setCartOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Seu Carrinho</DialogTitle></DialogHeader>
+      {/* Cart Sheet (sidebar) */}
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+        <SheetContent className="flex flex-col overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Seu Carrinho</SheetTitle>
+            <SheetDescription>Revise seus itens e preencha os dados para enviar o pedido.</SheetDescription>
+          </SheetHeader>
           {cart.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Carrinho vazio</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
+              {/* Cart items */}
               <div className="divide-y rounded-lg border">
                 {cart.map(item => (
                   <div key={item.productId} className="flex items-center justify-between p-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">R$ {item.price.toLocaleString('pt-BR')} un.</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, -1)}><Minus className="w-3 h-3" /></Button>
                       <span className="text-sm font-semibold w-5 text-center text-foreground">{item.quantity}</span>
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateCartQty(item.productId, 1)}><Plus className="w-3 h-3" /></Button>
@@ -206,17 +238,45 @@ export default function Catalog() {
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between font-semibold text-foreground text-lg"><span>Total</span><span>R$ {cartTotal.toLocaleString('pt-BR')}</span></div>
-              <div className="space-y-2"><Input placeholder="Seu nome (opcional)" value={clientName} onChange={e => setClientName(e.target.value)} /></div>
-              <Button className="w-full gold-gradient text-gold-foreground hover:opacity-90" onClick={sendWhatsApp} disabled={!whatsappNumber}>
+
+              <div className="flex justify-between font-semibold text-foreground text-lg">
+                <span>Total</span>
+                <span>R$ {cartTotal.toLocaleString('pt-BR')}</span>
+              </div>
+
+              {/* Order form */}
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-sm font-medium text-foreground">Dados do pedido</p>
+                <Input placeholder="Nome *" value={clientName} onChange={e => setClientName(e.target.value)} />
+                <Input placeholder="Telefone *" value={clientPhone} onChange={e => setClientPhone(e.target.value)} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {deliveryDate ? format(deliveryDate, 'dd/MM/yyyy') : 'Data de entrega (opcional)'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={deliveryDate} onSelect={setDeliveryDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+                <Input placeholder="Endereço de entrega (opcional)" value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)} />
+                <Textarea placeholder="Observação (opcional)" value={orderNote} onChange={e => setOrderNote(e.target.value)} rows={2} />
+              </div>
+
+              <Button className="w-full gold-gradient text-gold-foreground hover:opacity-90" onClick={sendWhatsApp} disabled={!canSend}>
                 <Send className="w-4 h-4 mr-2" /> {whatsappNumber ? 'Enviar Pedido por WhatsApp' : 'WhatsApp não configurado'}
               </Button>
               {!whatsappNumber && <p className="text-xs text-destructive text-center">O administrador precisa configurar o número de WhatsApp nas configurações.</p>}
+              {whatsappNumber && (!clientName.trim() || !clientPhone.trim()) && (
+                <p className="text-xs text-muted-foreground text-center">Preencha nome e telefone para enviar.</p>
+              )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
+      {/* Mobile FAB */}
       {cartCount > 0 && (
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="fixed bottom-6 right-6 sm:hidden z-40">
           <Button size="lg" className="rounded-full gold-gradient text-gold-foreground shadow-lg h-14 w-14" onClick={() => setCartOpen(true)}>
