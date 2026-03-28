@@ -99,7 +99,7 @@ const handleSave = async (data: any) => {
     let imageUrl = null;
 
     // 👇 upload da imagem
-    if (data.file && import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    if (data.file) {
       const file = data.file;
       const fileName = `${Date.now()}-${file.name}`;
 
