@@ -99,6 +99,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     if (data.category !== undefined) updateData.category = data.category;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.minStock !== undefined) updateData.min_stock = data.minStock;
+    if (data.image_url !== undefined) updateData.image_url = data.image_url;
 
     await supabase.from('products').update(updateData).eq('id', id);
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
