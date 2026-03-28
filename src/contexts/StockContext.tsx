@@ -51,6 +51,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
       setProducts(data.map(p => ({
         id: p.id, name: p.name, quantity: p.quantity, price: Number(p.price),
         category: p.category, description: p.description, minStock: p.min_stock, createdAt: p.created_at,
+        image_url: p.image_url ?? undefined,
       })));
     }
   }, []);
