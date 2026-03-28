@@ -172,15 +172,13 @@ export default function Catalog() {
               return (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.05 }}
                   className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-shadow">
-                  {p.image_url ? (
-                    <div className="h-40 bg-muted">
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="h-40 bg-muted flex items-center justify-center">
+                  <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-contain p-2" />
+                    ) : (
                       <Gem className="w-12 h-12 text-accent opacity-40" />
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <div className="p-4 space-y-3">
                     <div>
                       <h3 className="font-display font-semibold text-foreground">{p.name}</h3>
