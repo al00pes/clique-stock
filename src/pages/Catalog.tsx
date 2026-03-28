@@ -39,7 +39,7 @@ export default function Catalog() {
         supabase.from('products').select('*').gt('quantity', 0).order('name'),
         supabase.from('settings').select('*').eq('key', 'whatsapp_number').maybeSingle(),
       ]);
-      if (prods) setProducts(prods.map(p => ({ id: p.id, name: p.name, price: Number(p.price), quantity: p.quantity, category: p.category, description: p.description })));
+      if (prods) setProducts(prods.map(p => ({ id: p.id, name: p.name, price: Number(p.price), quantity: p.quantity, category: p.category, description: p.description, image_url: p.image_url ?? undefined })));
       if (settings) setWhatsappNumber(settings.value);
       setLoading(false);
     }
