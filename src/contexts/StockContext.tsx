@@ -80,11 +80,13 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.from('products').insert({
       name: p.name, quantity: p.quantity, price: p.price,
       category: p.category, description: p.description, min_stock: p.minStock,
+      image_url: p.image_url ?? null,
     }).select().single();
     if (data && !error) {
       setProducts(prev => [{
         id: data.id, name: data.name, quantity: data.quantity, price: Number(data.price),
         category: data.category, description: data.description, minStock: data.min_stock, createdAt: data.created_at,
+        image_url: data.image_url ?? undefined,
       }, ...prev]);
     }
   }, []);
