@@ -51,6 +51,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
       setProducts(data.map(p => ({
         id: p.id, name: p.name, quantity: p.quantity, price: Number(p.price),
         category: p.category, description: p.description, minStock: p.min_stock, createdAt: p.created_at,
+        image_url: p.image_url ?? undefined,
       })));
     }
   }, []);
@@ -79,11 +80,13 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.from('products').insert({
       name: p.name, quantity: p.quantity, price: p.price,
       category: p.category, description: p.description, min_stock: p.minStock,
+      image_url: p.image_url ?? null,
     }).select().single();
     if (data && !error) {
       setProducts(prev => [{
         id: data.id, name: data.name, quantity: data.quantity, price: Number(data.price),
         category: data.category, description: data.description, minStock: data.min_stock, createdAt: data.created_at,
+        image_url: data.image_url ?? undefined,
       }, ...prev]);
     }
   }, []);
@@ -96,6 +99,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     if (data.category !== undefined) updateData.category = data.category;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.minStock !== undefined) updateData.min_stock = data.minStock;
+    if (data.image_url !== undefined) updateData.image_url = data.image_url;
 
     await supabase.from('products').update(updateData).eq('id', id);
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));

@@ -14,6 +14,7 @@ interface CatalogProduct {
   quantity: number;
   category: string;
   description: string;
+  image_url?: string;
 }
 
 interface CartItem {
@@ -38,7 +39,7 @@ export default function Catalog() {
         supabase.from('products').select('*').gt('quantity', 0).order('name'),
         supabase.from('settings').select('*').eq('key', 'whatsapp_number').maybeSingle(),
       ]);
-      if (prods) setProducts(prods.map(p => ({ id: p.id, name: p.name, price: Number(p.price), quantity: p.quantity, category: p.category, description: p.description })));
+      if (prods) setProducts(prods.map(p => ({ id: p.id, name: p.name, price: Number(p.price), quantity: p.quantity, category: p.category, description: p.description, image_url: p.image_url ?? undefined })));
       if (settings) setWhatsappNumber(settings.value);
       setLoading(false);
     }
@@ -144,9 +145,15 @@ export default function Catalog() {
               return (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.05 }}
                   className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="h-40 bg-muted flex items-center justify-center">
-                    <Gem className="w-12 h-12 text-accent opacity-40" />
-                  </div>
+                  {p.image_url ? (
+                    <div className="h-40 bg-muted">
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="h-40 bg-muted flex items-center justify-center">
+                      <Gem className="w-12 h-12 text-accent opacity-40" />
+                    </div>
+                  )}
                   <div className="p-4 space-y-3">
                     <div>
                       <h3 className="font-display font-semibold text-foreground">{p.name}</h3>
