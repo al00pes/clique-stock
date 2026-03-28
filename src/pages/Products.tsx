@@ -96,22 +96,42 @@ export default function Products() {
 
 const handleSave = async (data: any) => {
   try {
-    let imageUrl = null;
+    if (!import.meta.env.VITE_SUPABASE_URL) {
+      throw new Error('Configuração do backend ausente (SUPABASE_URL).');
+    }
+
+    let imageUrl: string | null = editingProduct?.image_url ?? null;
 
     // 👇 upload da imagem
     if (data.file) {
       const file = data.file;
-      const fileName = `${Date.now()}-${file.name}`;
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+
+      const { error: bucketError } = await supabase.storage.from('products').list('', { limit: 1 });
+      if (bucketError) {
+        throw new Error(
+          bucketError.message.toLowerCase().includes('not found')
+            ? 'Bucket "products" não encontrado.'
+            : `Falha ao validar acesso ao storage: ${bucketError.message}`
+        );
+      }
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(fileName, file);
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        throw new Error(`Falha no upload da imagem: ${uploadError.message}`);
+      }
 
       const { data: publicUrl } = supabase.storage
         .from('products')
         .getPublicUrl(fileName);
+
+      if (!publicUrl?.publicUrl) {
+        throw new Error('Não foi possível gerar a URL pública da imagem.');
+      }
 
       imageUrl = publicUrl.publicUrl;
     }
@@ -127,9 +147,9 @@ const handleSave = async (data: any) => {
     };
 
     if (editingProduct) {
-      updateProduct(editingProduct.id, productData);
+      await updateProduct(editingProduct.id, productData);
     } else {
-      addProduct(productData);
+      await addProduct(productData);
     }
 
     setEditingProduct(undefined);
@@ -137,7 +157,7 @@ const handleSave = async (data: any) => {
 
   } catch (error) {
     console.error('Erro ao salvar produto:', error);
-    alert('Erro ao salvar produto. Veja o console para detalhes. ')
+    alert(error instanceof Error ? error.message : 'Erro ao salvar produto. Veja o console para detalhes.');
   }
 };
 
