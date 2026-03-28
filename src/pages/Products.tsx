@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
 
 function ProductForm({ product, onSave, onClose }: { product?: Product; onSave: (data: any) => void; onClose: () => void }) {
   const [name, setName] = useState(product?.name || '');
@@ -15,11 +17,24 @@ function ProductForm({ product, onSave, onClose }: { product?: Product; onSave: 
   const [category, setCategory] = useState(product?.category || '');
   const [description, setDescription] = useState(product?.description || '');
   const [minStock, setMinStock] = useState(product?.minStock?.toString() || '5');
+  const [file, setFile] = useState<File | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ name, quantity: Number(quantity), price: Number(price), category, description, minStock: Number(minStock) });
-    onClose();
+    onSave({ 
+      name, 
+      quantity: Number(quantity), 
+      price: Number(price), 
+      category, description, 
+      minStock: Number(minStock),
+      file });
+    //onClose();
   };
 
   return (
@@ -33,7 +48,29 @@ function ProductForm({ product, onSave, onClose }: { product?: Product; onSave: 
         <div className="space-y-2"><Label>Categoria</Label><Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex: Anéis" /></div>
         <div className="space-y-2"><Label>Estoque Mín.</Label><Input type="number" min="0" value={minStock} onChange={e => setMinStock(e.target.value)} /></div>
       </div>
-      <div className="space-y-2"><Label>Descrição</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
+      <div className="space-y-2"><Label>Descrição</Label>
+      <Input value={description} onChange={e => setDescription(e.target.value)} />
+      </div>
+
+     
+      <div className="space-y-2">
+          <Label>Imagem do Produto</Label>
+          <Input type="file" accept="image/*" onChange={handleFileChange} 
+          
+        />
+
+          {/* 👇 PREVIEW AQUI */}
+        {file && (
+          <img
+            src={URL.createObjectURL(file)}
+            alt="preview"
+            className="w-20 h-20 object-cover rounded-md mt-2"
+          />
+        )}
+
+
+      </div>
+
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
         <Button type="submit" className="gold-gradient text-gold-foreground hover:opacity-90">Salvar</Button>
@@ -57,14 +94,52 @@ export default function Products() {
     p.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = (data: any) => {
-    if (editingProduct) {
-      updateProduct(editingProduct.id, data);
-    } else {
-      addProduct(data);
+const handleSave = async (data: any) => {
+  try {
+    let imageUrl = null;
+
+    // 👇 upload da imagem
+    if (data.file && import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      const file = data.file;
+      const fileName = `${Date.now()}-${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from('products')
+        .getPublicUrl(fileName);
+
+      imageUrl = publicUrl.publicUrl;
     }
+
+    const productData = {
+      name: data.name,
+      quantity: data.quantity,
+      price: data.price,
+      category: data.category,
+      description: data.description,
+      minStock: data.minStock,
+      image_url: imageUrl
+    };
+
+    if (editingProduct) {
+      updateProduct(editingProduct.id, productData);
+    } else {
+      addProduct(productData);
+    }
+
     setEditingProduct(undefined);
-  };
+    setDialogOpen(false);
+
+  } catch (error) {
+    console.error('Erro ao salvar produto:', error);
+    alert('Erro ao salvar produto. Veja o console para detalhes. ')
+  }
+};
 
   const openEdit = (p: Product) => { setEditingProduct(p); setDialogOpen(true); };
   const openNew = () => { setEditingProduct(undefined); setDialogOpen(true); };
@@ -76,7 +151,7 @@ export default function Products() {
           <h1 className="text-3xl font-display font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground">{products.length} produtos cadastrados</p>
         </div>
-        <Dialog open={dialogOpen || showNew} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openNew} className="gold-gradient text-gold-foreground hover:opacity-90">
               <Plus className="w-4 h-4 mr-2" /> Novo Produto
@@ -111,9 +186,23 @@ export default function Products() {
                 <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
                   className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                   <td className="p-4">
-                    <p className="font-medium text-foreground">{p.name}</p>
-                    {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                    <div className="flex items-center gap-2">
+                      {p.image_url && (
+                        <img
+                          src={p.image_url}
+                          alt={p.name}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      )}
+                      <div className="flex flex-col">
+                        <p className="font-medium text-foreground">{p.name}</p>
+                        {p.description && (
+                          <p className="text-xs text-muted-foreground">{p.description}</p>
+                        )}
+                      </div>
+                    </div>
                   </td>
+                  
                   <td className="p-4 text-sm text-muted-foreground">{p.category || '—'}</td>
                   <td className="p-4 text-right">
                     <span className={`font-semibold ${p.quantity <= p.minStock ? 'text-destructive' : 'text-foreground'}`}>

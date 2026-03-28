@@ -10,6 +10,7 @@ export interface Product {
   description: string;
   minStock: number;
   createdAt: string;
+  image_url?: string; // ✅ torna a imagem opcional
 }
 
 export interface Movement {
